@@ -40,7 +40,7 @@ export default function App() {
         <div className="banner">⚠ Maintenance mode: {status.maintenance_message}</div>
       )}
 
-      {view === "dashboard" && status && <Dashboard status={status} projects={projects} go={setView} />}
+      {view === "dashboard" && status && <Dashboard status={status} projects={projects} go={setView} refresh={refresh} />}
       {view === "projects" && <ProjectsView projects={projects} refresh={refresh} />}
       {view === "pipeline" && <PipelineView />}
       {view === "admin" && <AdminView projects={projects} status={status} refresh={refresh} />}
@@ -48,9 +48,79 @@ export default function App() {
   );
 }
 
-function Dashboard({ status, projects, go }: { status: Status; projects: Project[]; go: (v: View) => void }) {
+
+function PrepTile({ status, refresh }: { status: Status; refresh: () => Promise<void> }) {
+  const today = new Date();
+  const def = `${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}.${today.getFullYear()}`;
+  const [date, setDate] = useState(def);
+  const [askPw, setAskPw] = useState(false);
+  const [pw, setPw] = useState("");
+  const [msg, setMsg] = useState("");
+  const prep = status.last_prep;
+  const running = prep?.status === "running" || prep?.status === "created";
+
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => refresh().catch(() => undefined), 3000);
+    return () => clearInterval(t);
+  }, [running, refresh]);
+
+  async function start() {
+    try {
+      await api.quickRun(pw, date);
+      setMsg("Prep started — this tile updates when it finishes.");
+      setAskPw(false);
+      setPw("");
+      await refresh();
+    } catch {
+      setMsg("Wrong password, or locked after too many failed attempts — wait a few minutes.");
+    }
+  }
+
+  return (
+    <section className="panel" style={{ borderWidth: 2 }}>
+      <div className="row">
+        <h2 style={{ margin: 0 }}>Migration prep</h2>
+        {prep && <span className={`pill ${prep.status}`}>{prep.status}</span>}
+      </div>
+      <p className="muted" style={{ marginTop: 6 }}>
+        Start → unzip → re-check → update site status. Pulls the ZIP from the
+        SharePoint folder <em>Migration - {date}</em>, builds the Combined CSVs,
+        runs the pre-checks, and writes the log + .xlsx fix report.
+      </p>
+      {prep ? (
+        <p>
+          Last prep: <strong>{prep.migration_date}</strong> — {prep.errors} errors · {prep.warnings} warnings
+          {prep.status === "completed" && (
+            <> · <a href={`/api/pipeline/runs/${prep.run_id}/artifacts/log`} download>log</a>
+            {" · "}<a href={`/api/pipeline/runs/${prep.run_id}/artifacts/xlsx`} download>.xlsx report</a></>
+          )}
+        </p>
+      ) : (
+        <p className="muted">No prep run yet.</p>
+      )}
+      <div className="form">
+        <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="mm.dd.yyyy" style={{ maxWidth: 130 }} />
+        {!askPw && <button onClick={() => setAskPw(true)} disabled={running}>{running ? "Prep running…" : "Run prep"}</button>}
+        {askPw && (
+          <>
+            <input type="password" placeholder="Site password" value={pw} autoFocus
+              onChange={(e) => setPw(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && start()} />
+            <button onClick={start}>Start prep</button>
+            <button onClick={() => setAskPw(false)}>Cancel</button>
+          </>
+        )}
+      </div>
+      {msg && <p className="muted">{msg}</p>}
+    </section>
+  );
+}
+
+function Dashboard({ status, projects, go, refresh }: { status: Status; projects: Project[]; go: (v: View) => void; refresh: () => Promise<void> }) {
   return (
     <main>
+      <PrepTile status={status} refresh={refresh} />
       <section className="cards">
         <div className="card"><h3>Projects</h3><p>{status.projects}</p></div>
         <div className="card"><h3>Jobs scheduled</h3><p>{status.jobs_scheduled}</p></div>
