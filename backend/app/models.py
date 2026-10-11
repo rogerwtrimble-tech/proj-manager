@@ -63,3 +63,36 @@ class AuditEntry(Base):
     action = Column(String(200), nullable=False)
     detail = Column(Text, default="")
     created_at = Column(DateTime, default=utcnow)
+
+
+class PipelineRun(Base):
+    __tablename__ = "pipeline_runs"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    migration_date = Column(String(20), nullable=False)  # mm.dd.yyyy
+    folder_url = Column(String(500), default="")
+    # created | running | completed | failed
+    status = Column(String(20), default="created")
+    stage = Column(String(50), default="")  # current/last step
+    errors = Column(Integer, default=0)
+    warnings = Column(Integer, default=0)
+    log = Column(Text, default="")
+    workdir = Column(String(500), default="")
+    log_artifact = Column(String(200), default="")
+    xlsx_artifact = Column(String(200), default="")
+    created_at = Column(DateTime, default=utcnow)
+    finished_at = Column(DateTime, nullable=True)
+
+
+class Script(Base):
+    __tablename__ = "scripts"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), unique=True, nullable=False)
+    description = Column(Text, default="")
+    code = Column(Text, default="")
+    last_status = Column(String(20), default="")  # ok | error | timeout
+    last_output = Column(Text, default="")
+    last_run_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

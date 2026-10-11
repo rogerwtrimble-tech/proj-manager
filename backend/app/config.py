@@ -15,6 +15,8 @@ class Settings:
         self.admin_token: str = os.environ.get("ADMIN_TOKEN", "change-me")
         self.frontend_dist: str = os.environ.get("FRONTEND_DIST", "")
         self.job_step_delay: float = float(os.environ.get("JOB_STEP_DELAY", "0.4"))
+        self.data_dir: str = os.path.abspath(os.environ.get("DATA_DIR", "/data" if os.path.isdir("/data") else "./data"))
+        self.script_timeout: int = int(os.environ.get("SCRIPT_TIMEOUT", "120"))
 
     @property
     def graph_configured(self) -> bool:

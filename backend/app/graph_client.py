@@ -21,13 +21,16 @@ class GraphError(Exception):
 class GraphClient:
     def __init__(self) -> None:
         self._token: str | None = None
+        self._token_expires_at: float = 0.0
 
     @property
     def configured(self) -> bool:
         return settings.graph_configured
 
     def _access_token(self) -> str:
-        if self._token:
+        import time
+
+        if self._token and time.time() < self._token_expires_at - 300:
             return self._token
         import msal
 
@@ -40,6 +43,7 @@ class GraphClient:
         if "access_token" not in result:
             raise GraphError(f"Token acquisition failed: {result.get('error_description', result)}")
         self._token = result["access_token"]
+        self._token_expires_at = time.time() + float(result.get("expires_in", 3600))
         return self._token
 
     def _get(self, path: str) -> dict:
@@ -85,4 +89,38 @@ class GraphClient:
         return {"ok": True, "mode": "live", "site": site, "drives": drives}
 
 
+    # --- Folder / file access for the migration pipeline -------------------
+    def _headers(self) -> dict:
+        return {"Authorization": f"Bearer {self._access_token()}"}
+
+    def site_default_drive_id(self, site_id: str) -> str:
+        data = self._get(f"/sites/{site_id}/drive")
+        return data.get("id")
+
+    def list_folder_children_by_path(self, drive_id: str, folder_path: str) -> list[dict]:
+        path = folder_path.strip("/")
+        data = self._get(f"/drives/{drive_id}/root:/{path}:/children")
+        return data.get("value", [])
+
+    def download_item(self, drive_id: str, item_id: str) -> bytes:
+        resp = requests.get(
+            f"{GRAPH_ROOT}/drives/{drive_id}/items/{item_id}/content",
+            headers=self._headers(), timeout=120,
+        )
+        if resp.status_code >= 400:
+            raise GraphError(f"Graph download {item_id} -> {resp.status_code}")
+        return resp.content
+
+    def upload_small_file(self, drive_id: str, folder_path: str, filename: str, content: bytes) -> dict:
+        path = f"{folder_path.strip('/')}/{filename}"
+        resp = requests.put(
+            f"{GRAPH_ROOT}/drives/{drive_id}/root:/{path}:/content",
+            headers={**self._headers(), "Content-Type": "application/octet-stream"},
+            data=content, timeout=120,
+        )
+        if resp.status_code >= 400:
+            raise GraphError(f"Graph upload {path} -> {resp.status_code}: {resp.text[:200]}")
+        return resp.json()
 graph_client = GraphClient()
+
+

@@ -13,8 +13,25 @@ from .config import settings
 from .db import Base, SessionLocal, engine, get_db
 from .graph_client import graph_client
 from .models import MigrationJob, Project
-from .routers import admin, jobs, projects
+from .routers import admin, jobs, pipeline as pipeline_router, projects
 from .schemas import StatusOut
+
+
+SAMPLE_SCRIPT = '''"""Starter utility: count rows in the latest Combined CSVs.
+Edit me in Admin -> Scripts. Env: DATA_DIR, MIG_BASE."""
+import csv, glob, os
+base = os.environ.get("MIG_BASE", "data/mig")
+runs = sorted(glob.glob(os.path.join(base, "*")))
+if not runs:
+    print("No migration data staged yet.")
+else:
+    latest = runs[-1]
+    print("Latest migration:", os.path.basename(latest))
+    for name in ("addresses.csv", "occupier.csv", "utilities.csv"):
+        path = os.path.join(latest, "combined", name)
+        rows = sum(1 for _ in open(path)) - 1 if os.path.isfile(path) else 0
+        print(f"{name}: {rows} rows")
+'''
 
 
 def seed_demo_data() -> None:
@@ -64,6 +81,11 @@ def seed_demo_data() -> None:
             ]
         )
         db.commit()
+        from .models import Script
+
+        if db.query(Script).count() == 0:
+            db.add(Script(name="row_counts.py", description="Count rows in the latest Combined CSVs", code=SAMPLE_SCRIPT))
+            db.commit()
     finally:
         db.close()
 
@@ -85,6 +107,7 @@ app = FastAPI(title="proj-manager", version="1.0.0", lifespan=lifespan)
 app.include_router(projects.router)
 app.include_router(jobs.router)
 app.include_router(admin.router)
+app.include_router(pipeline_router.router)
 
 
 @app.get("/api/health")

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, Job, Project, Status } from "./api";
+import { api, Job, PipelineRun, Project, ScriptItem, Status } from "./api";
 
-type View = "dashboard" | "projects" | "admin";
+type View = "dashboard" | "projects" | "pipeline" | "admin";
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
@@ -25,7 +25,7 @@ export default function App() {
       <header>
         <h1>proj-manager</h1>
         <nav>
-          {(["dashboard", "projects", "admin"] as View[]).map((v) => (
+          {(["dashboard", "projects", "pipeline", "admin"] as View[]).map((v) => (
             <button key={v} className={view === v ? "active" : ""} onClick={() => setView(v)}>
               {v[0].toUpperCase() + v.slice(1)}
             </button>
@@ -42,6 +42,7 @@ export default function App() {
 
       {view === "dashboard" && status && <Dashboard status={status} projects={projects} go={setView} />}
       {view === "projects" && <ProjectsView projects={projects} refresh={refresh} />}
+      {view === "pipeline" && <PipelineView />}
       {view === "admin" && <AdminView projects={projects} status={status} refresh={refresh} />}
     </div>
   );
@@ -177,6 +178,118 @@ function ProjectsView({ projects, refresh }: { projects: Project[]; refresh: () 
   );
 }
 
+
+function PipelineView() {
+  const today = new Date();
+  const def = `${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}.${today.getFullYear()}`;
+  const [date, setDate] = useState(def);
+  const [folder, setFolder] = useState("");
+  const [runs, setRuns] = useState<PipelineRun[]>([]);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => setRuns(await api.runs()), []);
+  useEffect(() => {
+    load().catch(console.error);
+    const t = setInterval(() => load().catch(() => undefined), 4000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  async function start() {
+    try {
+      await api.createRun(date, folder || `Migration - ${date}`);
+      setError("");
+      await load();
+    } catch (e) {
+      setError("Could not start run — check the admin token in the Admin view. " + String(e));
+    }
+  }
+
+  return (
+    <main>
+      <section className="panel">
+        <h2>Migration data pipeline</h2>
+        <p className="muted">
+          Stages the ZIP from the SharePoint folder (by URL, no mapped drives), builds the Combined
+          CSVs (addresses / occupier / utilities), runs pre-checks (dry run), and writes the
+          [ERROR]/[WARNING] log + .xlsx fix report. Artifacts are saved under
+          data/mig/&lt;date&gt;/ and uploaded back to the folder's Results/ in live mode.
+        </p>
+        <div className="form">
+          <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="mm.dd.yyyy" />
+          <input style={{ minWidth: 340 }} value={folder} onChange={(e) => setFolder(e.target.value)}
+            placeholder={`SharePoint folder URL or path (default: Migration - ${date})`} />
+          <button onClick={start}>Stage + pre-check + report</button>
+        </div>
+        {error && <p className="muted">{error}</p>}
+      </section>
+      {runs.map((r) => (
+        <section key={r.id} className="panel">
+          <div className="row">
+            <strong>Run #{r.id} — {r.migration_date}</strong>
+            <span className={`pill ${r.status}`}>{r.status}</span>
+            <span>{r.errors} errors · {r.warnings} warnings</span>
+            {r.log_artifact && <a href={`/api/pipeline/runs/${r.id}/artifacts/log`} download>Download log</a>}
+            {r.xlsx_artifact && <a href={`/api/pipeline/runs/${r.id}/artifacts/xlsx`} download>Download .xlsx report</a>}
+          </div>
+          <div className="muted">{r.folder_url}</div>
+          {r.log && <pre className="log">{r.log}</pre>}
+        </section>
+      ))}
+    </main>
+  );
+}
+
+function ScriptsPanel() {
+  const [scripts, setScripts] = useState<ScriptItem[]>([]);
+  const [editing, setEditing] = useState<ScriptItem | null>(null);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("print('hello from utility script')");
+
+  const load = useCallback(async () => setScripts(await api.scripts()), []);
+  useEffect(() => { load().catch(console.error); }, [load]);
+
+  async function save() {
+    if (editing) await api.updateScript(editing.id, editing.name, code, editing.description);
+    else await api.createScript(name, code);
+    setEditing(null);
+    await load();
+  }
+
+  return (
+    <section className="panel">
+      <h2>Utility scripts (Python venv)</h2>
+      <p className="muted">
+        Scripts are stored in the app, edited here, and executed in the app's Python environment —
+        no local setup for managers. They receive DATA_DIR and MIG_BASE environment variables.
+        Editing and running require the admin token above.
+      </p>
+      {scripts.map((s) => (
+        <div key={s.id} className="job">
+          <div className="row">
+            <span><strong>{s.name}</strong> — {s.description}</span>
+            <span className="pill">{s.last_status || "not run"}</span>
+            <button onClick={() => { setEditing(s); setCode(s.code); }}>Edit</button>
+            <button onClick={async () => { await api.runScript(s.id); await load(); }}>Run</button>
+          </div>
+          {s.last_output && <pre className="log">{s.last_output}</pre>}
+        </div>
+      ))}
+      <h3>{editing ? `Edit ${editing.name}` : "New script"}</h3>
+      {!editing && (
+        <div className="form">
+          <input placeholder="script_name.py" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+      )}
+      <textarea value={code} onChange={(e) => setCode(e.target.value)} rows={10}
+        style={{ width: "100%", fontFamily: "monospace", fontSize: 13 }} />
+      <div className="form">
+        <button onClick={save}>{editing ? "Save changes" : "Create script"}</button>
+        {editing && <button onClick={() => setEditing(null)}>Cancel</button>}
+      </div>
+    </section>
+  );
+}
+
 function AdminView({ projects, status, refresh }: { projects: Project[]; status: Status | null; refresh: () => Promise<void> }) {
   const [token, setToken] = useState(localStorage.getItem("admin_token") || "");
   const [msg, setMsg] = useState("Scheduled maintenance in progress. Migrations are paused.");
@@ -230,6 +343,8 @@ function AdminView({ projects, status, refresh }: { projects: Project[]; status:
           </div>
         ))}
       </section>
+
+      <ScriptsPanel />
 
       <section className="panel">
         <h2>Audit log</h2>

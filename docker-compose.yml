@@ -14,5 +14,21 @@ services:
       - proj_data:/data
     restart: unless-stopped
 
+  # Optional: full online VS Code (code-server) for editing utility scripts
+  # and pipeline code in the browser. Start with:
+  #   EDITOR_PASSWORD=<password> docker compose --profile editor up -d
+  # then open http://localhost:8443 (working dir = the app data volume).
+  editor:
+    image: codercom/code-server:latest
+    container_name: proj-manager-editor
+    profiles: ["editor"]
+    environment:
+      PASSWORD: ${EDITOR_PASSWORD:-}
+    ports:
+      - "8443:8080"
+    volumes:
+      - proj_data:/data
+    restart: unless-stopped
+
 volumes:
   proj_data:

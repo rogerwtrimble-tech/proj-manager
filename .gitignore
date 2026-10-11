@@ -8,3 +8,6 @@ dist/
 venv/
 .venv/
 tsconfig.tsbuildinfo
+
+# runtime data (pipeline workdirs, staged files, scripts)
+data/

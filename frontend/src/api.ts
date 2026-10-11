@@ -24,6 +24,29 @@ export interface Job {
   log: string;
 }
 
+export interface PipelineRun {
+  id: number;
+  migration_date: string;
+  folder_url: string;
+  status: string;
+  stage: string;
+  errors: number;
+  warnings: number;
+  log: string;
+  log_artifact: string;
+  xlsx_artifact: string;
+}
+
+export interface ScriptItem {
+  id: number;
+  name: string;
+  description: string;
+  code: string;
+  last_status: string;
+  last_output: string;
+  last_run_at: string | null;
+}
+
 export interface Status {
   graph_configured: boolean;
   demo_mode: boolean;
@@ -73,6 +96,28 @@ export const api = {
     }),
   graphTest: () =>
     req<unknown>("/api/admin/graph/test", { method: "POST", headers: adminHeaders() }),
+  createRun: (date: string, folderUrl: string) =>
+    req<PipelineRun>("/api/pipeline/runs", {
+      method: "POST",
+      headers: adminHeaders(),
+      body: JSON.stringify({ migration_date: date, folder_url: folderUrl }),
+    }),
+  runs: () => req<PipelineRun[]>("/api/pipeline/runs"),
+  scripts: () => req<ScriptItem[]>("/api/scripts"),
+  createScript: (name: string, code: string) =>
+    req<ScriptItem>("/api/scripts", {
+      method: "POST",
+      headers: adminHeaders(),
+      body: JSON.stringify({ name, code }),
+    }),
+  updateScript: (id: number, name: string, code: string, description = "") =>
+    req<ScriptItem>(`/api/scripts/${id}`, {
+      method: "PUT",
+      headers: adminHeaders(),
+      body: JSON.stringify({ name, code, description }),
+    }),
+  runScript: (id: number) =>
+    req<ScriptItem>(`/api/scripts/${id}/run`, { method: "POST", headers: adminHeaders() }),
   audit: () =>
     req<Array<{ id: number; action: string; detail: string; created_at: string }>>(
       "/api/admin/audit",
