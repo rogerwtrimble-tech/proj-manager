@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    image: proj-manager:latest
+    container_name: proj-manager
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: sqlite:////data/proj_manager.db
+    volumes:
+      - proj_data:/data
+    restart: unless-stopped
+
+volumes:
+  proj_data:

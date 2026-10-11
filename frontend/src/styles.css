@@ -1,0 +1,30 @@
+:root { font-family: system-ui, sans-serif; color: #1b1b1f; background: #f5f6f8; }
+body { margin: 0; }
+.layout { max-width: 980px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 22px; margin: 8px 0; }
+nav button { margin-right: 6px; padding: 6px 12px; border: 1px solid #c9ccd4; background: #fff; border-radius: 6px; cursor: pointer; }
+nav button.active { background: #2456a6; color: #fff; border-color: #2456a6; }
+.badge { margin-left: auto; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.badge.demo { background: #ffe1a8; } .badge.live { background: #b9e7c3; }
+.banner { background: #fff3cd; border: 1px solid #e2c36a; padding: 10px 12px; border-radius: 8px; margin: 10px 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 14px 0; }
+.card { background: #fff; border: 1px solid #e0e2e8; border-radius: 10px; padding: 14px; }
+.card h3 { margin: 0 0 6px; font-size: 13px; color: #555; text-transform: uppercase; }
+.card p { margin: 0; font-size: 28px; font-weight: 700; }
+.panel { background: #fff; border: 1px solid #e0e2e8; border-radius: 10px; padding: 16px; margin: 12px 0; }
+.panel h2 { margin-top: 0; font-size: 17px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; }
+.pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #e8ebf0; text-transform: uppercase; }
+.pill.completed, .pill.complete { background: #b9e7c3; }
+.pill.running { background: #a8ccff; } .pill.blocked, .pill.failed { background: #ffb3b3; }
+.pill.maintenance { background: #ffe1a8; }
+.muted { color: #666; font-size: 13px; }
+.form { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.form input, .form select { padding: 8px; border: 1px solid #c9ccd4; border-radius: 6px; }
+button { padding: 7px 12px; border: 1px solid #c9ccd4; background: #fff; border-radius: 6px; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+.job { border-top: 1px solid #eee; padding: 10px 0; }
+.bar { height: 8px; background: #eceef2; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+.bar div { height: 100%; background: #2456a6; transition: width .3s; }
+.log { background: #111827; color: #d1fae5; padding: 10px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; max-height: 180px; overflow: auto; }
