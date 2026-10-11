@@ -76,3 +76,23 @@ def test_pipeline_api_and_script_runner(client):
 def test_pipeline_requires_admin(client):
     r = client.post("/api/pipeline/runs", json={"migration_date": DATE})
     assert r.status_code == 401
+
+
+def test_quick_run_tile_flow(client):
+    r = client.post("/api/pipeline/run-quick", json={"password": "wrong", "migration_date": DATE})
+    assert r.status_code == 403
+    r = client.post("/api/pipeline/run-quick", json={"password": "test-admin", "migration_date": DATE})
+    assert r.status_code == 202
+    run_id = r.json()["run_id"]
+    deadline = time.time() + 20
+    body = {}
+    while time.time() < deadline:
+        body = client.get(f"/api/pipeline/runs/{run_id}").json()
+        if body["status"] in ("completed", "failed"):
+            break
+        time.sleep(0.3)
+    assert body["status"] == "completed", body
+    status = client.get("/api/status").json()
+    assert status["last_prep"] is not None
+    assert status["last_prep"]["migration_date"] == DATE
+    assert status["last_prep"]["errors"] >= 4

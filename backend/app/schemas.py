@@ -20,6 +20,7 @@ class ProjectOut(ProjectIn):
     updated_at: datetime
     job_count: int = 0
     jobs_completed: int = 0
+    last_prep: dict | None = None
 
 
 class JobIn(BaseModel):
@@ -59,3 +60,4 @@ class StatusOut(BaseModel):
     jobs_scheduled: int
     jobs_running: int
     jobs_completed: int
+    last_prep: dict | None = None

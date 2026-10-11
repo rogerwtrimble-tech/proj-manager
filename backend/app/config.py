@@ -13,6 +13,9 @@ class Settings:
         self.ms_client_secret: str = os.environ.get("MS_CLIENT_SECRET", "")
         self.onedrive_user_upn: str = os.environ.get("ONEDRIVE_USER_UPN", "")
         self.admin_token: str = os.environ.get("ADMIN_TOKEN", "change-me")
+        # Shared secret for the dashboard "Migration prep" tile.
+        # Falls back to ADMIN_TOKEN when RUN_PASSWORD is not set.
+        self.run_password: str = os.environ.get("RUN_PASSWORD", "") or self.admin_token
         self.frontend_dist: str = os.environ.get("FRONTEND_DIST", "")
         self.job_step_delay: float = float(os.environ.get("JOB_STEP_DELAY", "0.4"))
         self.data_dir: str = os.path.abspath(os.environ.get("DATA_DIR", "/data" if os.path.isdir("/data") else "./data"))

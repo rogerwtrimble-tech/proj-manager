@@ -12,7 +12,7 @@ from . import services
 from .config import settings
 from .db import Base, SessionLocal, engine, get_db
 from .graph_client import graph_client
-from .models import MigrationJob, Project
+from .models import MigrationJob, Project, PipelineRun
 from .routers import admin, jobs, pipeline as pipeline_router, projects
 from .schemas import StatusOut
 
@@ -129,7 +129,23 @@ def status(db: Session = Depends(get_db)):
         jobs_scheduled=sum(1 for j in jobs_all if j.status == "scheduled"),
         jobs_running=sum(1 for j in jobs_all if j.status == "running"),
         jobs_completed=sum(1 for j in jobs_all if j.status == "completed"),
+        last_prep=_last_prep(db),
     )
+
+
+def _last_prep(db: Session) -> dict | None:
+    last = db.query(PipelineRun).order_by(PipelineRun.id.desc()).first()
+    if not last:
+        return None
+    return {
+        "run_id": last.id,
+        "migration_date": last.migration_date,
+        "status": last.status,
+        "stage": last.stage,
+        "errors": last.errors,
+        "warnings": last.warnings,
+        "finished_at": last.finished_at,
+    }
 
 
 # --- Built frontend (single-container deployment) -------------------------

@@ -1,7 +1,9 @@
+import hmac
 import os
 import subprocess
 import sys
 import threading
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -112,6 +114,47 @@ def download_artifact(run_id: int, kind: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Artifact file missing")
     media = "text/plain" if kind == "log" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return FileResponse(path, filename=name, media_type=media)
+
+
+class QuickRunIn(BaseModel):
+    password: str
+    migration_date: str = ""  # mm.dd.yyyy; defaults to today
+    folder_url: str = ""
+
+
+# Simple in-memory throttle for the shared-password tile endpoint:
+# after 5 failed attempts, lock for 5 minutes.
+_attempts: dict = {"fails": 0, "locked_until": 0.0}
+
+
+@router.post("/pipeline/run-quick", status_code=202)
+def quick_run(payload: QuickRunIn, db: Session = Depends(get_db)):
+    """Dashboard tile entry point for site visitors who know the shared
+    secret (RUN_PASSWORD, falling back to ADMIN_TOKEN). Runs the full
+    chain: stage (download + unzip) -> normalize -> pre-check -> report,
+    then the dashboard status reflects the result."""
+    now = time.time()
+    if now < _attempts["locked_until"]:
+        raise HTTPException(429, "Too many failed attempts — try again in a few minutes")
+    if not payload.password or not hmac.compare_digest(payload.password, settings.run_password):
+        _attempts["fails"] += 1
+        if _attempts["fails"] >= 5:
+            _attempts["locked_until"] = now + 300
+            _attempts["fails"] = 0
+        raise HTTPException(403, "Wrong password")
+    _attempts["fails"] = 0
+    date = payload.migration_date.strip() or datetime.now().strftime("%m.%d.%Y")
+    run = PipelineRun(
+        migration_date=date,
+        folder_url=payload.folder_url or f"Migration - {date}",
+        workdir=pipeline.mig_dir(date),
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    threading.Thread(target=_execute, args=(run.id, ["stage", "normalize", "precheck", "report"]), daemon=True).start()
+    services.audit(db, "pipeline.quick_run", f"Run {run.id} started from the dashboard tile for {date}.")
+    return {"run_id": run.id, "migration_date": date, "status": run.status}
 
 
 # ---------------------------------------------------------------------------

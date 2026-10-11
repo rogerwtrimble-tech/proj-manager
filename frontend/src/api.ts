@@ -8,6 +8,15 @@ export interface Project {
   status: string;
   job_count: number;
   jobs_completed: number;
+  last_prep: {
+    run_id: number;
+    migration_date: string;
+    status: string;
+    stage: string;
+    errors: number;
+    warnings: number;
+    finished_at: string | null;
+  } | null;
 }
 
 export interface Job {
@@ -58,6 +67,15 @@ export interface Status {
   jobs_scheduled: number;
   jobs_running: number;
   jobs_completed: number;
+  last_prep: {
+    run_id: number;
+    migration_date: string;
+    status: string;
+    stage: string;
+    errors: number;
+    warnings: number;
+    finished_at: string | null;
+  } | null;
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -96,6 +114,11 @@ export const api = {
     }),
   graphTest: () =>
     req<unknown>("/api/admin/graph/test", { method: "POST", headers: adminHeaders() }),
+  quickRun: (password: string, date: string) =>
+    req<{ run_id: number; migration_date: string; status: string }>("/api/pipeline/run-quick", {
+      method: "POST",
+      body: JSON.stringify({ password, migration_date: date }),
+    }),
   createRun: (date: string, folderUrl: string) =>
     req<PipelineRun>("/api/pipeline/runs", {
       method: "POST",

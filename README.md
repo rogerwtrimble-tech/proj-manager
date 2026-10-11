@@ -49,6 +49,15 @@ usually proposed. Reconsidered against the actual work:
 
 ## Migration data pipeline
 
+**Dashboard tile (visitors):** the quickest path is the **Migration prep**
+tile on the Dashboard. Anyone who knows the shared site password
+(`RUN_PASSWORD`, falling back to `ADMIN_TOKEN`) clicks **Run prep**,
+enters the password, and the full chain runs — start → unzip → re-check →
+site statuses update on the tile with error/warning counts and download
+links for the log and report. Five wrong password attempts lock the tile
+for five minutes. The Pipeline view remains the detailed surface (custom
+folder URLs, full run history).
+
 Per migration date, a SharePoint folder named `Migration - mm.dd.yyyy`
 holds a ZIP of raw house data (per city/state CSVs: location, price,
 occupied, owner/rental, occupier contacts, utilities). From the
