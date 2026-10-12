@@ -95,8 +95,13 @@ on-the-fly fixes without touching anyone's laptop. A starter
 ## Go live with your SharePoint
 
 1. In the Azure portal, register an app (single tenant).
-2. Grant **application permissions**: `Sites.Read.All` (or `Sites.Selected`)
-   and `Files.Read.All`; grant admin consent.
+2. Grant **application permissions**: `Sites.ReadWrite.All` and
+   `Files.ReadWrite.All`; grant admin consent. (The Read-only pair
+   `Sites.Read.All` + `Files.Read.All` passes the connection test only —
+   the prep pipeline uploads `Results/` back to SharePoint and the copy
+   step writes to the target, so ReadWrite avoids a second consent
+   round. Don't substitute `Sites.Selected` unless you also do its
+   per-site grant; see AZURE-SETUP.md.)
 3. Create a client secret.
 4. Put these in `.env` and restart (`docker compose up --build -d`):
 
